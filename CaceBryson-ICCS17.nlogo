@@ -103,10 +103,13 @@ end
 ;; at setup time, we run what happens normally a few times to get some food grown up
 to setup-patches
   ask patches [
-    set here-list  0      ;; all patches are empty
-    repeat 25 [fill-patches-regular]
-    update-patches
+    ifelse(any? subpops-patches in-radius (subpop-radius)) [
+      set pcolor 41
+    ][
+      set pcolor 42
+    ]
   ]
+  ask subpops-patches [ set pcolor (60) ]
 end
 
 ; on every cycle, each patch has a food-replacement-rate% chance of being filled with grass, whether it had food there before or not.
@@ -114,10 +117,6 @@ to fill-patches-regular
   if (random-float 100 < food-replacement-rate) [
     set here-list 1 ;; add regular food
   ]
-end
-
-to update-patches
-  set pcolor (40 + (here-list * 3))
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -140,8 +139,8 @@ end
 
 to setup_turtle[subpop]
   set age random lifespan                    ;; set age to hatchlings (fput kind hatchlingsrandom number < lifespan
-  setxy (random-normal 0 subpop-radius / 2 + item 0 subpop)                 ;; randomize the turtle locations
-     (random-normal 0 subpop-radius / 2 + item 1 subpop)
+  setxy (random-normal 0 subpop-radius / 3 + item 0 subpop)                 ;; randomize the turtle locations
+     (random-normal 0 subpop-radius / 3  + item 1 subpop)
   set energy (random-normal 18 0.9 )
   set knowhow (random-normal start-know 0.5)
   set color tc
@@ -160,11 +159,6 @@ to go
     ;live-or-die
     communicate
   ]
-  ;  if (food-depletes?) [ ; conditionals slow things down, but we used this initially to debug.  But it's not very ecological to be able to eat without destroying the plants!
-  ask patches [
-    fill-patches-regular
-    update-patches
-  ]
 
   if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
                                            ; if (count turtles = 0) [(show (word "turtles became extinct at:" ticks)) stop] ;; never happens so excised for speed
@@ -177,14 +171,6 @@ to take-food
 
   set k knowhow
 ; here-list is taken to refer to a value of patch-here. This is good
-  if (here-list = 1)[
-    set energy (energy + regular * knowhow / 10)
-
-    ask patch-here [
-      set here-list 0
-      update-patches
-    ]
-  ]
 
   ; if there was regular food and the agent had less then max enenrgy, it has been eaten
   ; if there wasn't first here-list will remain 0
@@ -470,8 +456,8 @@ end
 GRAPHICS-WINDOW
 365
 10
-701
-347
+1181
+507
 -1
 -1
 8.0
@@ -484,10 +470,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--20
-20
--20
-20
+-50
+50
+-30
+30
 0
 0
 1
@@ -646,7 +632,7 @@ start-num-turtles
 start-num-turtles
 0
 1000
-80.0
+140.0
 10
 1
 NIL
@@ -747,7 +733,7 @@ subpop-count
 subpop-count
 1
 100
-2.0
+7.0
 1
 1
 NIL
@@ -762,7 +748,7 @@ subpop-radius
 subpop-radius
 0
 10
-3.0
+3.9
 0.1
 1
 NIL

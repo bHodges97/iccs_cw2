@@ -38,27 +38,30 @@
 ;;                  have higher variance since the effects are all probabilistic / population-based.
 
 
-globals [ extra-list                  ;; holds the values for the different types of food
-          regular                     ;; holds the value for the regular type of food, accesible to all
-          show-knowledge
-          p-knowhow                   ;; the chance that a turtle will know how to exploit a new foodtype at birth (FIXME should be a slider)
-          num-special-food-strat      ;; num-food-strat - 1, often useful.
-          expected-graph-max          ;; what we expect the Y axis to run to on the big combined plot
-          foodstrat-graph-const       ;; multiplier based on num-food-strat for the combined plot
-          tc                          ; social turtle colour
-          ktc                         ; turtles-that-know-something-you-are-looking-at colour
-          subpops
-          ]
+globals [
+  extra-list                  ;; holds the values for the different types of food
+  regular                     ;; holds the value for the regular type of food, accesible to all
+  show-knowledge
+  p-knowhow                   ;; the chance that a turtle will know how to exploit a new foodtype at birth (FIXME should be a slider)
+  num-special-food-strat      ;; num-food-strat - 1, often useful.
+  expected-graph-max          ;; what we expect the Y axis to run to on the big combined plot
+  foodstrat-graph-const       ;; multiplier based on num-food-strat for the combined plot
+  tc                          ; social turtle colour
+  ktc                         ; turtles-that-know-something-you-are-looking-at colour
+  subpops
+  subpops-patches
+]
 
 
 patches-own [ here-list ]   ;;hold a value describing the type of food that is on this patch, -1 if empty
 
-turtles-own [ age
-              energy
-              knowhow
-              homesubpop
-              destsubpop
-               ]
+turtles-own [
+  age
+  energy
+  knowhow
+  homesubpop
+  destsubpop
+]
 
 
 to setup
@@ -88,7 +91,8 @@ to setup-globals
 ;  set knowledge-transfer 0   ; see comment about this at the top of the file.  Variable not used now.
 
   set subpops []
-  repeat subpop-count [set subpops lput randxy subpops]
+  repeat subpop-count [set subpops lput randsubpop subpops]
+  set subpops-patches ( patch-set ( map [x -> patch (item 0 x) (item 1 x)] subpops ) )
 end
 
 
@@ -98,29 +102,30 @@ end
 
 ;; at setup time, we run what happens normally a few times to get some food grown up
 to setup-patches
-ask patches
-   [ set here-list  0      ;; all patches are empty
-     repeat 25 [fill-patches-regular]
-     update-patches
-   ]
+  ask patches [
+    set here-list  0      ;; all patches are empty
+    repeat 25 [fill-patches-regular]
+    update-patches
+  ]
 end
 
 ; on every cycle, each patch has a food-replacement-rate% chance of being filled with grass, whether it had food there before or not.
 to fill-patches-regular
-if (random-float 100 < food-replacement-rate)
-  [ set here-list 1]             ;; add regular food
+  if (random-float 100 < food-replacement-rate) [
+    set here-list 1 ;; add regular food
+  ]
 end
 
 to update-patches
-set pcolor (40 + (here-list * 3))
+  set pcolor (40 + (here-list * 3))
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;turtles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-to-report randxy
-   report list ((random world-width) - world-width / 2) ((random world-height) - world-height / 2)
+to-report randsubpop
+  report list round ((random world-width) - world-width / 2) round ((random world-height) - world-height / 2)
 end
 
 to setup-agents
@@ -147,88 +152,89 @@ end
 to go
   tick
   ask (turtles) [
-                ;take-food
-                ;if (random energy) > 30 [give-birth ]   ; "30" should really be a variable too; this is bad style to bury a parameter like this. Determines amount of investment per child
-                ;set energy (energy - 1)
-                move-somewhere
-                ;set age (age + 1)
-                ;live-or-die
-                communicate
-              ]
-;  if (food-depletes?) [ ; conditionals slow things down, but we used this initially to debug.  But it's not very ecological to be able to eat without destroying the plants!
-    ask patches
-      [ fill-patches-regular
-        update-patches ]
-;      ] ; if food depletes
+    ;take-food
+    ;if (random energy) > 30 [give-birth ]   ; "30" should really be a variable too; this is bad style to bury a parameter like this. Determines amount of investment per child
+    ;set energy (energy - 1)
+    move-somewhere
+    ;set age (age + 1)
+    ;live-or-die
+    communicate
+  ]
+  ;  if (food-depletes?) [ ; conditionals slow things down, but we used this initially to debug.  But it's not very ecological to be able to eat without destroying the plants!
+  ask patches [
+    fill-patches-regular
+    update-patches
+  ]
 
- if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
-  ; if (count turtles = 0) [(show (word "turtles became extinct at:" ticks)) stop] ;; never happens so excised for speed
-;  if (ticks = simulation-runtime) [(show "time's up!") stop]
+  if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
+                                           ; if (count turtles = 0) [(show (word "turtles became extinct at:" ticks)) stop] ;; never happens so excised for speed
+                                           ;  if (ticks = simulation-runtime) [(show "time's up!") stop]
 end
 
 
 to take-food
-let k 0
+  let k 0
 
-set k knowhow
+  set k knowhow
 ; here-list is taken to refer to a value of patch-here. This is good
   if (here-list = 1)[
     set energy (energy + regular * knowhow / 10)
 
-     ask patch-here [ set here-list 0
-      update-patches]]
+    ask patch-here [
+      set here-list 0
+      update-patches
+    ]
+  ]
 
-   ; if there was regular food and the agent had less then max enenrgy, it has been eaten
-   ; if there wasn't first here-list will remain 0
-   ; the rest of here-list has to be updated depending on agent know-how
-   ; because we are now in a patch procedure, turtle know-how cannot be accesed and has
-   ; to be stored in an extra variable
-   ; `update-patches' actually works on 1 patch at the time
+  ; if there was regular food and the agent had less then max enenrgy, it has been eaten
+  ; if there wasn't first here-list will remain 0
+  ; the rest of here-list has to be updated depending on agent know-how
+  ; because we are now in a patch procedure, turtle know-how cannot be accesed and has
+  ; to be stored in an extra variable
+  ; `update-patches' actually works on 1 patch at the time
 end
 
 to communicate
-let k 0
-set k knowhow
-   ask turtles in-radius broadcast-radius [getknow k]
-
+  let k 0
+  set k knowhow
+  ask turtles in-radius broadcast-radius [getknow k]
 end
 
 to getknow [know]
   ;;if(know >= knowhow)[set knowhow knowhow + (know - knowhow) * (1 + ifelse-value(random-float 1 > beta)[alpha][ 0 - alpha])];
 
 
-  if (know >= knowhow)
-  [ifelse (random-float 1 > alpha) [
-    ifelse (random-float 1 > beta)[
-      set knowhow (know + random-float (20 - know))
+  if (know >= knowhow)[
+    ifelse (random-float 1 > alpha) [
+      ifelse (random-float 1 > beta) [
+        set knowhow (know + random-float (20 - know))
+      ][
+        set knowhow know
+      ]
+    ][
+      set knowhow (know - (random-float (know - 1)))
     ]
-    [
-      set knowhow know
-  ]]
-  [
-    set knowhow (know - (random-float (know - 1)))
-  ]]
+  ]
 end
 
 to live-or-die
-  if (energy <= 0) or (age > lifespan)
-                 [
-                   ; show word word energy " is energy, age is " age
-                   ;die
-                 ]
+  if (energy <= 0) or (age > lifespan) [
+    ; show word word energy " is energy, age is " age
+    ;die
+  ]
 end
 
 
 to give-birth
 
-           hatch 1  [
-                        set age 0
-                        set energy (energy * 0.2)
-                        ;; if there were going to be cultural maternal effects, the code would go here
+  hatch 1 [
+    set age 0
+    set energy (energy * 0.2)
+    ;; if there were going to be cultural maternal effects, the code would go here
 
-                        getknow knowhow  ; for no particular reason except code efficiency, the agents learn at birth whatever they would individually discover in their lifetime
-                        ]
-             set energy (energy * 0.8)  ; keep the overall energy the same
+    getknow knowhow  ; for no particular reason except code efficiency, the agents learn at birth whatever they would individually discover in their lifetime
+  ]
+  set energy (energy * 0.8)  ; keep the overall energy the same
 
 end
 
@@ -238,20 +244,15 @@ end
 ;;            run-dist          ;; approx distance moved per turn , see below
 ;;            travel-mode       ;; exact distance; levi flight; smooth distribution; or warp
 to move-somewhere
-
-
-  ifelse (inradofpop)[
-  set destsubpop false
-  ; get rid of picked subpop if subpop was picked
-  rt random 360  ; turn somewhere (silly if warping)
+  ifelse (inradiusofpop)[
+    set destsubpop false
+    ; get rid of picked subpop if subpop was picked
+    rt random 360  ; turn somewhere (silly if warping)
   ][
     if (not destsubpop)[
-      let target item random (subpop-count) subpops
-      let ddx (item 0 target) - xcor
-      let ddy (item 1 target) - ycor
-      set heading (atan ddx ddy)
-    ; pick a random subpop and rotate towards it
-     ; set destsubpop to true
+      face one-of subpops-patches
+      ; pick a random subpop and rotate towards it
+      ; set destsubpop to true
       set destsubpop true
     ]
   ]
@@ -260,43 +261,44 @@ to move-somewhere
   move-forward
 end
 
-to-report inradofpop
-  report reduce [[x y] -> x or y] (map [x -> (inradius(x))] subpops)
-end
-
-to-report inradius [subpop]
-  report sqrt ((item 0 subpop - xcor) ^ 2 + (item 1 subpop - ycor) ^ 2) <= subpop-radius
+to-report inradiusofpop
+  report any? subpops-patches in-radius subpop-radius
 end
 
 to move-forward
-  ifelse (travel-mode = "warp") [warp]
-  [; else not warp
-    fd ifelse-value (travel-mode = "gamma distribution") [gamma-flight run-dist] ; Was Levy Flight -- see Edwards et al 2007
-         [ ifelse-value (travel-mode = "exact distance") [run-dist]
-         [ random-float run-dist] ; not exact, so else "smooth distribution"
-        ] ; not gamma-flight
-      ] ; not warp
+  ifelse (travel-mode = "warp") [
+    warp
+  ][; else not warp
+    fd ifelse-value (travel-mode = "gamma distribution") [
+      gamma-flight run-dist ; Was Levy Flight -- see Edwards et al 2007
+    ][
+      ifelse-value (travel-mode = "exact distance") [
+        run-dist
+      ][
+        random-float run-dist ; not exact, so else "smooth distribution"
+      ]
+    ] ; not gamma-flight
+  ] ; not warp
 end
 
 to warp
-  setxy (random world-width)  ;; randomize the turtle locations
-        (random world-height)
+  setxy (random world-width) (random world-height);; randomize the turtle locations
 end
 
 ; this is all from Edwards et al 2007 (more natural than Levy Flight) via Dr. Lowe
 to-report gamma-flight [len]
-let mn len / 2
-let gm (len ^ 2) / 12  ; yes I know the parens should be redundant
-let delta (mn ^ 2 ) / gm
-let lambda mn / gm
-; let out 0 ; for debugging -- normally report directly
+  let mn len / 2
+  let gm (len ^ 2) / 12  ; yes I know the parens should be redundant
+  let delta (mn ^ 2 ) / gm
+  let lambda mn / gm
+  ; let out 0 ; for debugging -- normally report directly
 
-;alpha and lambda are what netlogo calls its gamma parameters, but they don't document what they really are.
-;alpha is really shape, and lambda is really rate.
+  ;alpha and lambda are what netlogo calls its gamma parameters, but they don't document what they really are.
+  ;alpha is really shape, and lambda is really rate.
 
-report (random-gamma delta lambda)
-;output-print out  ; for debugging, delete later
-;report out
+  report (random-gamma delta lambda)
+  ;output-print out  ; for debugging, delete later
+  ;report out
 
 end
 
@@ -644,7 +646,7 @@ start-num-turtles
 start-num-turtles
 0
 1000
-1.0
+80.0
 10
 1
 NIL

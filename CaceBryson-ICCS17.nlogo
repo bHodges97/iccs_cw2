@@ -59,6 +59,8 @@ turtles-own [
   language
   homesubpop
   destsubpop
+  lastsubpop
+  migrating
 ]
 
 
@@ -133,6 +135,8 @@ to setup_turtle[subpop]
   set color tc
   set homesubpop subpop
   set destsubpop false
+  set lastsubpop patch (item 0 subpop) (item 1 subpop)
+  set migrating false
 end
 
 to go
@@ -188,19 +192,27 @@ end
 ;;            run-dist          ;; approx distance moved per turn , see below
 ;;            travel-mode       ;; exact distance; levi flight; smooth distribution; or warp
 to move-somewhere
-  ifelse (inradiusofpop)[
-    set destsubpop false
-    ; get rid of picked subpop if subpop was picked
-    rt random 360  ; turn somewhere (silly if warping)
+  let near subpops-patches in-radius subpop-radius
+
+  ifelse (migrating)[ ;; if migrating
+    if(any? near and one-of near = destsubpop)[ ;; if near destination
+      set lastsubpop one-of near
+      set migrating false
+    ]
   ][
-    if (not destsubpop)[
-      face one-of subpops-patches
-      ; pick a random subpop and rotate towards it
-      ; set destsubpop to true
-      set destsubpop true
+    ifelse(random 100 < migration-chance)[ ;; if migrate
+      set destsubpop one-of subpops-patches
+      set migrating true
+      face destsubpop
+    ][;; if at home
+      ifelse(not any? near)[
+        face lastsubpop
+        rt (random (90) - 45)
+      ][
+        rt random 360
+      ]
     ]
   ]
-  ;else pick a subpop if subpop has not been picked already and move towards it
 
   move-forward
 end
@@ -633,6 +645,21 @@ subpop-radius
 0.1
 1
 NIL
+HORIZONTAL
+
+SLIDER
+85
+436
+285
+469
+migration-chance
+migration-chance
+0
+100
+0.0
+1
+1
+%
 HORIZONTAL
 
 SLIDER

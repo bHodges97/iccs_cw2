@@ -57,9 +57,6 @@ turtles-own [ age
               knowhow
                ]
 
-breed [ talker a-talker ]
-breed [ silent a-silent ]
-
 
 to setup
   ;; (for this model to work with NetLogo's new plotting features,
@@ -70,7 +67,6 @@ to setup
   setup-globals
   setup-patches
   setup-agents
-  setup-plot
 end
 
 to setup-globals
@@ -97,8 +93,8 @@ end
 ;; at setup time, we run what happens normally a few times to get some food grown up
 to setup-patches
 ask patches
-   [ set here-list (n-values num-food-strat [ 0 ])     ;; all patches are empty
-     repeat 25 [fill-patches-regular fill-patches-special]
+   [ set here-list  0      ;; all patches are empty
+     repeat 25 [fill-patches-regular]
      update-patches
    ]
 end
@@ -106,21 +102,11 @@ end
 ; on every cycle, each patch has a food-replacement-rate% chance of being filled with grass, whether it had food there before or not.
 to fill-patches-regular
 if (random-float 100 < food-replacement-rate)
-  [set here-list (n-values num-food-strat [ 0 ])     ;; empty whatever is on the patch
-   set here-list (add-food 0 here-list)]             ;; add regular food
-end
-
-; on every cycle, each patch has a (food-replacement-rate * ratio-of-special-foods)% chance of being filled with a special food, though it
-; may immediately afterwards get replaced by grass.
-to fill-patches-special
-if (sum here-list) = 0 ;; if the patch is empty
-  [ if (num-special-food-strat != 0 ) and ((random-float 100 ) < (food-replacement-rate * (2 ^ ratio-of-special-foods)))
-    [ set here-list (n-values num-food-strat [ 0 ])                                 ;; empty whatever is on the patch
-      set here-list (add-food ((random num-special-food-strat) + 1) here-list)] ]   ;; add one of the food types
+  [ set here-list 1]             ;; add regular food
 end
 
 to update-patches
-set pcolor (40 + (first here-list * 3) + (sum (butfirst here-list) * 5))
+set pcolor (40 + (here-list * 3))
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -128,49 +114,29 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to setup-agents
-  set-default-shape talker "loud"
-  set-default-shape silent "silent"
   crt start-num-turtles                                   ;; create given number of turtles
   ask turtles [set age random lifespan                    ;; set age to hatchlings (fput kind hatchlingsrandom number < lifespan
                setxy (random world-width)                 ;; randomize the turtle locations
                         (random world-height)
                set energy (random-normal 18 0.9 )
-               init-soc-vars
+               set knowhow (random-normal start-know 0.5)
                set color tc ]
-end
-
-to init-soc-vars
-  ;; roll dice for breed
-  ifelse ((random 100) < (starting-proportion-altruists * 100))  [ set breed talker ] [ set breed silent ]
-  mutate-or-not
-  ;; roll dice for every knowledge-slot
-  get-infant-knowledge                       ;; a few will know something extra...
-end
-
-to mutate-or-not
-    if (mutation?) [if (1 = (random (10 ^ freq-of-mutation))) [ifelse (breed = talker) [ set breed silent ] [ set breed talker ]]]
 end
 
 to go
   tick
   ask (turtles) [
                 take-food
-
                 if (random energy) > 30 [give-birth ]   ; "30" should really be a variable too; this is bad style to bury a parameter like this. Determines amount of investment per child
-                if (show-knowledge != 0)
-                    [ update-looks-knowhow ]
                 set energy (energy - 1)
                 move-somewhere
                 set age (age + 1)
                 live-or-die
-                if (breed = talker) [
-                  communicate
-                  ]
+                communicate
               ]
 ;  if (food-depletes?) [ ; conditionals slow things down, but we used this initially to debug.  But it's not very ecological to be able to eat without destroying the plants!
     ask patches
-      [ fill-patches-special
-        fill-patches-regular
+      [ fill-patches-regular
         update-patches ]
 ;      ] ; if food depletes
 
@@ -185,15 +151,11 @@ let k 0
 
 set k knowhow
 ; here-list is taken to refer to a value of patch-here. This is good
-   if (first here-list = 1)       ;first check for regular food
-      [set energy (energy + regular)
-       ]
-   if (sum (map [ [?1 ?2] -> ?1 * ?2 ] knowhow ( butfirst here-list)) = 1)  ;check for the spec. stuff
-       [set energy (energy + (regular * 2))
-       ]
+  if (here-list = 1)[
+    set energy (energy + regular * knowhow / 10)
 
-     ask patch-here [ set here-list fput 0 (adjust-here-list (butfirst here-list) k)
-                      update-patches]
+     ask patch-here [ set here-list 0
+      update-patches]]
 
    ; if there was regular food and the agent had less then max enenrgy, it has been eaten
    ; if there wasn't first here-list will remain 0
@@ -204,16 +166,27 @@ set k knowhow
 end
 
 to communicate
-  let n 0
+let k 0
+set k knowhow
+   ask turtles in-radius broadcast-radius [getknow k]
 
-  if (num-special-food-strat != 0) [
-    ;;pick an item that is 1: first make a list of all the items that are 1
-    ;;then randomly pick 1 to tell neighbours
-    if (sum knowhow) > 0
-      [set n (one-of (non-zero knowhow 0))
-       ask turtles in-radius broadcast-radius
-         [ set knowhow (replace-item n knowhow 1)]]
-               ]
+end
+
+to getknow [know]
+  ;;if(know >= knowhow)[set knowhow knowhow + (know - knowhow) * (1 + ifelse-value(random-float 1 > beta)[alpha][ 0 - alpha])];
+
+
+  if (know >= knowhow)
+  [ifelse (random-float 1 > alpha) [
+    ifelse (random-float 1 > beta)[
+      set knowhow (know + random-float (20 - know))
+    ]
+    [
+      set knowhow know
+  ]]
+  [
+    set knowhow (know - (random-float (know - 1)))
+  ]]
 end
 
 to live-or-die
@@ -233,25 +206,11 @@ to give-birth
                         set energy (energy * 0.2)
                         ;; if there were going to be cultural maternal effects, the code would go here
 
-                        get-infant-knowledge  ; for no particular reason except code efficiency, the agents learn at birth whatever they would individually discover in their lifetime
-                        mutate-or-not ; may change breed...
+                        getknow knowhow  ; for no particular reason except code efficiency, the agents learn at birth whatever they would individually discover in their lifetime
                         ]
              set energy (energy * 0.8)  ; keep the overall energy the same
 
 end
-
-
-; "infant": for no particular reason except code efficiency, the agents learn at birth whatever they would individually discover in their lifetime
-to get-infant-knowledge
-let ixi 0
-
-      set knowhow n-values num-special-food-strat [0]
-                        if ((num-special-food-strat > 0) and (random-float 1 < p-knowhow)) [
-                          set ixi (random num-special-food-strat)
-                          set knowhow replace-item ixi knowhow 1
-                          ]
- end
-
 
 ;;;;;;;;;;HOW TO MOVE;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -282,14 +241,14 @@ end
 to-report gamma-flight [len]
 let mn len / 2
 let gm (len ^ 2) / 12  ; yes I know the parens should be redundant
-let alpha (mn ^ 2 ) / gm
+let delta (mn ^ 2 ) / gm
 let lambda mn / gm
 ; let out 0 ; for debugging -- normally report directly
 
 ;alpha and lambda are what netlogo calls its gamma parameters, but they don't document what they really are.
 ;alpha is really shape, and lambda is really rate.
 
-report (random-gamma alpha lambda)
+report (random-gamma delta lambda)
 ;output-print out  ; for debugging, delete later
 ;report out
 
@@ -352,12 +311,6 @@ end
 ;;the list describing the food available at a certain patch is
 ;;adjusted according to the list describing turtle knowhow
 ;; assumes turtle ate everything it knew how to eat!
-to-report adjust-here-list [hrlst knwhw]
-if hrlst = [] [report []]
-ifelse (first knwhw = 1) [ report (fput 0 (adjust-here-list (butfirst hrlst) (butfirst knwhw))) ]
-                         [ report (fput (first hrlst) (adjust-here-list (butfirst hrlst) (butfirst knwhw))) ]
-end
-
 ;;adds 1 to item n of list l
 to-report add-food [n l]
 report (replace-item n l ((item n l) + 1 ) )
@@ -383,6 +336,14 @@ if (list2 = []) [report list1]
 report (map [ [?1 ?2] -> ?1 + ?2 ] list1 list2)
 end
 
+to-report safe-mean[lll]
+  ifelse(length lll > 0)[report mean lll][report 0]
+end
+
+to-report avg-know
+  report safe-mean [knowhow] of turtles
+end
+
 to-report field
 report (world-width  * world-height)
 end
@@ -394,7 +355,7 @@ end
 
 ;returns some information on the knowledge spread and the amount of food
 to show-values
-let soc-turtles (turtle-set talker silent)
+let soc-turtles (turtle-set )
 let n 0
   let t 0
 
@@ -421,143 +382,34 @@ print (word "total food = " (((count patches with [first here-list = 1]) * 5)
                             + ((count patches with [sum butfirst here-list = 1]) * 10)))
 print (word "patches with regular food " (count patches with [first here-list = 1])
             " (" precision (((count patches with [first here-list = 1]) / field) * 100) 2 "%)")
-print (word "patches with special food " (count patches with [sum butfirst here-list = 1])
-            " (" precision (((count patches with [sum butfirst here-list = 1]) / field) * 100) 2 "%)")
-if (any? talker)  [
-   print (word "avarage knowhow talker: " (precision (mean ([sum knowhow] of talker)) 2) )
-   print (word "standard deviation: " (precision (standard-deviation ([sum knowhow] of talker)) 2) ) ]
-if (any? silent)  [
-   print (word "avarage knowhow silent: " (precision (mean ([sum knowhow] of silent)) 2) )
-   print (word "standard deviation: " (precision (standard-deviation ([sum knowhow] of silent)) 2) ) ]
-end
-
-;; this happens if you push the "add silents" button.  It introduces some more free riders, just in case you can't believe they won't die out again (they will).
-to get-silents
-let soc-turtles (turtle-set talker silent)
-let c 0
-  let k 0
-
-set c (0.5 * (count soc-turtles))
-set k ((mean ([sum knowhow] of talker)) / num-special-food-strat)
-ask n-of c talker [die] ;kill off half the talkers
-create-silent c                                      ;; create given number of silents
-ask silent [set age random lifespan                    ;; set age to hatchlings (fput kind hatchlingsrandom number < lifespan
-            setxy (random world-width)  ;; randomize the turtle locations
-                  (random world-height)
-            set energy (random-normal 18 0.9 )
-            set knowhow n-values num-special-food-strat [round (((random 100) / 100) - (0.50 - k))]
-            set color 97 ]
 end
 
 
 ;;;;;;;;;;;;;;;THE PLOTTING PART;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
-to setup-plot
-  set-current-plot "t-s-knowhow"
-  set-plot-x-range 0 num-food-strat
-  set-histogram-num-bars num-food-strat
-  set-current-plot "cost of speaking"
-  set-plot-x-range 0 num-food-strat
-end
-
 to update-plot
 update-plot-all
 ;update-plot-offspring
-update-t-s-knowhow
-update-cost-of-speaking
 ; update-speaking-cost-over-time
 ;update-type-of-food
 end
 
 to update-agegroups
-let soc-turtles (turtle-set talker silent)
+let soc-turtles (turtle-set)
 set-current-plot "agegroups"
 histogram [ age ] of soc-turtles          ; using the default plot pen
 end
 
 to update-plot-all
 let c 0
-let soc-turtles (turtle-set talker silent)
-
 ;locals [c r]
 set-current-plot "plot-all"
 set-current-plot-pen "turtles"
-  plot count soc-turtles
+  plot count turtles
 set-current-plot-pen "reg-food"
-  plot ceiling ( 0.4 * (count patches with [(first here-list) = 1 ]))
-set-current-plot-pen "spec-food"
-  plot ceiling (0.4 * (count patches with [ sum (butfirst here-list) = 1]) )
-set-current-plot-pen "prop. talk"
- plot ceiling (expected-graph-max * ((count talker) / ((count silent) + (count talker))))
+  plot ceiling ( 0.2 * (count patches with [ here-list = 1 ]))
 set-current-plot-pen "know"
-  if (count soc-turtles != 0) [ plot ceiling (foodstrat-graph-const * ((sum [sum knowhow] of soc-turtles) / (count soc-turtles)))]
-end
-
-
-; update the barchart
-to update-knowledge
-let l 0
-let soc-turtles (turtle-set talker silent)
-
-set l (sum-list ([knowhow] of soc-turtles))
-set l (map [ ?1 -> ( ?1 / (count soc-turtles)) * 100 ] l)
-; choose the plot
-set-current-plot "knowledge"
-; set the height of the plot
-;set-plot-y-range 0 (max l)
-; set the width of the plot (will change)
-set-plot-x-range 0 num-special-food-strat
-; make sure the "default" pen is selected
-set-current-plot-pen "default"
-; reset the plot pen (so plotting starts from the left)
-plot-pen-reset
-; make sure it's a bar plot
-set-plot-pen-mode 1
-; add bars to the plot
-foreach (n-values (length l) [ ?1 -> ?1 ] )
-  [ ?1 -> ; ?1 is index
-  plot ( item ?1 l )
-  ]
-end
-
-
-to-report energy-talkers
-report mean ([energy] of talker)
-end
-
-to-report energy-silent
-report mean ([energy] of silent)
-end
-
-to-report safe-standard-deviation [lll]
-  ifelse (length lll > 1)
-    [report standard-deviation lll]
-    [report 0]
-end
-to-report safe-mean [lll]
-  ifelse (length lll > 0)
-    [report mean lll]
-    [report 0]
-end
-
-to-report avg-silent-k [iii]
-    report safe-mean [energy] of (silent with [iii = sum knowhow])
-end
-to-report sd-silent-k [iii]
-    report safe-standard-deviation [energy] of (silent with [iii = sum knowhow])
-end
-to-report count-silent-k [iii]
-    report count silent with [iii = sum knowhow]
-end
-to-report avg-talker-k [iii]
-    report safe-mean [energy] of (talker with [iii = sum knowhow])
-end
-to-report sd-talker-k [iii]
-    report safe-standard-deviation [energy] of (talker with [iii = sum knowhow])
-end
-to-report count-talker-k [iii]
-    report count talker with [iii = sum knowhow]
+  if (count turtles != 0) [ plot ceiling (100 * (avg-know))]
 end
 
 ;plots the age of the turtles having offspring
@@ -565,70 +417,6 @@ to update-plot-offspring
 set-current-plot "offspring"
 set-current-plot-pen "age"
 set-plot-pen-mode 2
-end
-
-;plots number of turtles knowing 1-2-3 etc things, for each breed
-to update-t-s-knowhow
-let s 0
-  let t 0
-
-set-current-plot "t-s-knowhow"
-set-current-plot-pen "silent"
-set-plot-pen-mode 1
-histogram [sum knowhow] of silent
-set-current-plot-pen "talker"
-set-plot-pen-mode 1
-histogram [sum knowhow] of talker
-end
-
-
-;plots number of turtles knowing 1-2-3 etc things, for each breed
-to update-cost-of-speaking
-let iii 0
-
-set-current-plot "cost of speaking"
-set iii 0
-clear-plot
-while [iii < num-food-strat] [
-  set-current-plot-pen "silent"
-  ifelse (any? silent with [iii = sum knowhow])
-    [plotxy iii mean [energy] of (silent with [iii = sum knowhow])]
-    [plotxy iii 0]
-  set-current-plot-pen "talker"
-  ifelse (any? talker with [iii = sum knowhow])
-    [plotxy iii mean [energy] of (talker with [iii = sum knowhow])]
-    [plotxy iii 0]
-  set iii iii + 1
-  ]
-end
-
-
-;plots number of turtles knowing 1-2-3 etc things, for each breed
-to update-speaking-cost-over-time
-let iii 0
-  let yyy 0
-
-set-current-plot "speaking cost over time"
-set iii 1
-while [iii < 6] [
-  set-current-plot-pen word iii " things"
-  set yyy energy-diff iii
-  plot yyy
-  set iii iii + 1
-  ]
-end
-
-to-report energy-diff [sum-know-how]
-let sss 0
-  let ttt 0
-
-ifelse (any? talker with [sum-know-how = sum knowhow])
-      [set ttt mean [energy] of (talker with [sum-know-how = sum knowhow])]
-      [set ttt 0]
-ifelse (any? silent with [sum-know-how = sum knowhow])
-      [set sss mean [energy] of (silent with [sum-know-how = sum knowhow])]
-      [set sss 0]
- report sss - ttt
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -684,7 +472,7 @@ starting-proportion-altruists
 starting-proportion-altruists
 0
 1
-0.1
+0.4
 0.05
 1
 NIL
@@ -708,10 +496,10 @@ NIL
 1
 
 PLOT
-6
-716
-502
-1061
+1410
+111
+1906
+456
 plot-all
 NIL
 NIL
@@ -729,73 +517,6 @@ PENS
 "spec-food" 1.0 0 -955883 true "" ""
 "prop. talk" 1.0 0 -7500403 true "" ""
 
-MONITOR
-16
-604
-107
-649
-NIL
-energy-talkers
-0
-1
-11
-
-MONITOR
-111
-604
-214
-649
-energy-silents
-energy-silent
-0
-1
-11
-
-MONITOR
-17
-653
-132
-698
-ratio talker/silent
-(count talker)/((count silent) + (count talker))
-3
-1
-11
-
-BUTTON
-11
-544
-116
-577
-who knows?
-flip-color
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-250
-504
-319
-537
-color off
-color-off
-NIL
-1
-T
-TURTLE
-NIL
-NIL
-NIL
-NIL
-1
-
 BUTTON
 243
 13
@@ -803,59 +524,6 @@ BUTTON
 46
 go 1x
 go
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-PLOT
-508
-723
-708
-873
-t-s-knowhow
-# things known
-#  agents
-0.0
-10.0
-0.0
-100.0
-true
-true
-"" ""
-PENS
-"silent" 1.0 1 -13345367 true "" ""
-"talker" 1.0 1 -5825686 true "" ""
-
-BUTTON
-273
-661
-387
-694
-NIL
-show-values
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-155
-661
-259
-694
-add silents
-get-silents
 NIL
 1
 T
@@ -889,7 +557,7 @@ CHOOSER
 travel-mode
 travel-mode
 "exact distance" "gamma distribution" "smooth distribution" "warp"
-2
+1
 
 SLIDER
 10
@@ -915,7 +583,7 @@ lifespan
 lifespan
 5
 100
-65.0
+100.0
 5
 1
 NIL
@@ -936,25 +604,6 @@ start-num-turtles
 NIL
 HORIZONTAL
 
-PLOT
-509
-876
-708
-1026
-cost of speaking
-# things known
-avg. energy
-0.0
-10.0
-0.0
-10.0
-true
-true
-"" ""
-PENS
-"silent" 1.0 1 -13345367 true "" ""
-"talker" 1.0 1 -5825686 true "" ""
-
 SLIDER
 3
 334
@@ -964,52 +613,11 @@ food-replacement-rate
 food-replacement-rate
 0
 10
-3.5
+0.5
 .1
 1
 % per cycle
 HORIZONTAL
-
-SLIDER
-3
-370
-306
-403
-ratio-of-special-foods
-ratio-of-special-foods
--8
-8
--8.0
-1
-1
-(2 is raised to this)
-HORIZONTAL
-
-SLIDER
-109
-420
-371
-453
-freq-of-mutation
-freq-of-mutation
-0
-10
-5.0
-1
-1
-(1 in 10 raised to this)
-HORIZONTAL
-
-SWITCH
-6
-420
-106
-453
-mutation?
-mutation?
-0
-1
--1000
 
 SLIDER
 11
@@ -1020,59 +628,65 @@ broadcast-radius
 broadcast-radius
 0
 10
-2.4
+3.6
 .1
 1
 NIL
 HORIZONTAL
 
-MONITOR
-285
-603
-342
-648
-NIL
-ticks
-17
+SLIDER
+9
+75
+181
+108
+start-know
+start-know
 1
-11
+20
+10.0
+1
+1
+NIL
+HORIZONTAL
 
-MONITOR
-121
-532
-206
-577
-knows what
-show-knowledge
-17
-1
-11
-
-BUTTON
-215
-544
-355
-577
-who knows most?
-knowledge-gradient
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-MONITOR
-10
-495
-103
-540
-NIL
-count turtles
+SLIDER
+8
+488
+180
+521
+alpha
+alpha
 0
+1
+0.1
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+7
+545
+179
+578
+beta
+beta
+0
+.9
+0.1
+0.01
+1
+NIL
+HORIZONTAL
+
+MONITOR
+246
+492
+313
+537
+NIL
+avg-know
+17
 1
 11
 

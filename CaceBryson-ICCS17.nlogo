@@ -91,6 +91,7 @@ to setup-globals
   set subpops []
   repeat subpop-count [set subpops lput randsubpop subpops]
   set subpops-patches ( patch-set ( map [x -> patch (item 0 x) (item 1 x)] subpops ) )
+
 end
 
 
@@ -131,7 +132,7 @@ end
 to setup_turtle[subpop]
   setxy (random-normal 0 subpop-radius / 3 + item 0 subpop)                 ;; randomize the turtle locations
      (random-normal 0 subpop-radius / 3  + item 1 subpop)
-  set language (list start-know)
+  set language (list start-know 0 0 0 0 0 0 0 0 0)
   set color tc
   set homesubpop subpop
   set destsubpop false
@@ -149,6 +150,10 @@ to go
     ;set age (age + 1)
     ;live-or-die
     communicate
+
+  ]
+  ask (turtles) [
+  show language
   ]
 
   if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
@@ -162,29 +167,21 @@ to communicate
 end
 
 to talkwith [otherlang]
-  show language
-  show otherlang
   let intermediate (map get_lang language otherlang)
-  if (random 100 < (alpha / length (filter [x -> x > 0] language)))[
-    if(all? turtles [set_language_success])[
-      set intermediate lput (max (list (random-normal 0 beta) 0)) intermediate
-    ]
+  if (random 100 < (alpha))[
+    let index random (length language)
+    set intermediate replace-item  index intermediate (max (list (random-normal (item index intermediate) beta) 0.00001))
   ]
   let meaninter sum intermediate
   set language map [x -> x / meaninter] intermediate
 end
 
-to-report set_language_success
-  set language lput 0 language
-  report True
-end
-
 
 to-report get_lang [value1 value2]
   if (value1 + value2 = 0) [
-    report 0
+    report 0.00001
   ]
-  report random-normal ((value1 + value2) / 2) beta
+  report max (list random-normal ((value1 + value2) / 2) beta 0.00001)
 end
 
 ;;;;;;;;;;HOW TO MOVE;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -580,10 +577,10 @@ SLIDER
 108
 start-know
 start-know
-1
-20
 1.0
-1
+2.0
+1.0
+0.00001
 1
 NIL
 HORIZONTAL
@@ -597,7 +594,7 @@ alpha
 alpha
 0
 1
-0.27
+1.0
 0.01
 1
 NIL
@@ -612,7 +609,7 @@ beta
 beta
 0
 .9
-0.29
+0.9
 0.01
 1
 NIL

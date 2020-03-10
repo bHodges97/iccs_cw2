@@ -56,8 +56,6 @@ globals [
 patches-own [ here-list ]   ;;hold a value describing the type of food that is on this patch, -1 if empty
 
 turtles-own [
-  age
-  energy
   knowhow
   homesubpop
   destsubpop
@@ -78,9 +76,7 @@ to setup
 end
 
 to setup-globals
-  set num-special-food-strat (num-food-strat - 1)             ;;;this is more intuitive
   set expected-graph-max 8000       ;; hard coded from looking at graphs
-  set foodstrat-graph-const expected-graph-max / num-food-strat             ;; see update-plot-all
   set regular 5                     ;;;default food's value, this could also be user defined.
 
   set extra-list (n-values num-special-food-strat [ (regular * 2) ])  ;; special are worth twice as much
@@ -114,13 +110,6 @@ to setup-patches
   ask subpops-patches [ set pcolor (60) ]
 end
 
-; on every cycle, each patch has a food-replacement-rate% chance of being filled with grass, whether it had food there before or not.
-to fill-patches-regular
-  if (random-float 100 < food-replacement-rate) [
-    set here-list 1 ;; add regular food
-  ]
-end
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;turtles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -135,15 +124,13 @@ end
 
 to setup_subpop [subpop]
 
-  crt start-num-turtles [setup_turtle (subpop)]
+  crt turtles-per-pop [setup_turtle (subpop)]
 end
 
 
 to setup_turtle[subpop]
-  set age random lifespan                    ;; set age to hatchlings (fput kind hatchlingsrandom number < lifespan
   setxy (random-normal 0 subpop-radius / 3 + item 0 subpop)                 ;; randomize the turtle locations
      (random-normal 0 subpop-radius / 3  + item 1 subpop)
-  set energy (random-normal 18 0.9 )
   set knowhow (random-normal start-know 0.5)
   set color tc
   set homesubpop subpop
@@ -205,27 +192,6 @@ to getknow [know]
       set knowhow (know - (random-float (know - 1)))
     ]
   ]
-end
-
-to live-or-die
-  if (energy <= 0) or (age > lifespan) [
-    ; show word word energy " is energy, age is " age
-    ;die
-  ]
-end
-
-
-to give-birth
-
-  hatch 1 [
-    set age 0
-    set energy (energy * 0.2)
-    ;; if there were going to be cultural maternal effects, the code would go here
-
-    getknow knowhow  ; for no particular reason except code efficiency, the agents learn at birth whatever they would individually discover in their lifetime
-  ]
-  set energy (energy * 0.8)  ; keep the overall energy the same
-
 end
 
 ;;;;;;;;;;HOW TO MOVE;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -440,12 +406,6 @@ update-plot-all
 ;update-type-of-food
 end
 
-to update-agegroups
-let soc-turtles (turtle-set)
-set-current-plot "agegroups"
-histogram [ age ] of soc-turtles          ; using the default plot pen
-end
-
 to update-plot-all
 let c 0
 ;locals [c r]
@@ -508,21 +468,6 @@ NIL
 NIL
 NIL
 1
-
-SLIDER
-10
-159
-226
-192
-starting-proportion-altruists
-starting-proportion-altruists
-0
-1
-0.4
-0.05
-1
-NIL
-HORIZONTAL
 
 BUTTON
 143
@@ -606,63 +551,18 @@ travel-mode
 1
 
 SLIDER
-10
-196
-150
-229
-num-food-strat
-num-food-strat
-1
-20
-8.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-172
-196
-314
-229
-lifespan
-lifespan
-5
-100
-100.0
-5
-1
-NIL
-HORIZONTAL
-
-SLIDER
 11
 117
 199
 150
-start-num-turtles
-start-num-turtles
+turtles-per-pop
+turtles-per-pop
 0
 1000
 140.0
 10
 1
 NIL
-HORIZONTAL
-
-SLIDER
-3
-334
-269
-367
-food-replacement-rate
-food-replacement-rate
-0
-10
-2.3
-.1
-1
-% per cycle
 HORIZONTAL
 
 SLIDER
@@ -696,10 +596,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-8
-488
-180
-521
+11
+194
+183
+227
 alpha
 alpha
 0
@@ -711,10 +611,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-7
-545
-179
-578
+187
+194
+359
+227
 beta
 beta
 0
@@ -725,22 +625,11 @@ beta
 NIL
 HORIZONTAL
 
-MONITOR
-246
-492
-313
-537
-NIL
-avg-know
-17
-1
-11
-
 SLIDER
-14
-378
+11
+153
+183
 186
-411
 subpop-count
 subpop-count
 1
@@ -752,15 +641,15 @@ NIL
 HORIZONTAL
 
 SLIDER
-191
-378
-363
-411
+188
+153
+360
+186
 subpop-radius
 subpop-radius
 0
 10
-3.9
+2.9
 0.1
 1
 NIL
@@ -779,6 +668,21 @@ migration-chance
 1
 1
 %
+HORIZONTAL
+
+SLIDER
+184
+288
+356
+321
+migration-chance
+migration-chance
+0
+1
+1.0
+0.001
+1
+NIL
 HORIZONTAL
 
 @#$#@#$#@
@@ -1150,7 +1054,7 @@ Polygon -6459832 true true 38 138 66 149
 Polygon -6459832 true true 46 128 33 120 21 118 11 123 3 138 5 160 13 178 9 192 0 199 20 196 25 179 24 161 25 148 45 140
 Polygon -6459832 true true 67 122 96 126 63 144
 @#$#@#$#@
-NetLogo 6.1.0
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

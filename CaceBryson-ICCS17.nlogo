@@ -56,7 +56,7 @@ globals [
 patches-own [ here-list ]   ;;hold a value describing the type of food that is on this patch, -1 if empty
 
 turtles-own [
-  knowhow
+  language
   homesubpop
   destsubpop
 ]
@@ -129,7 +129,7 @@ end
 to setup_turtle[subpop]
   setxy (random-normal 0 subpop-radius / 3 + item 0 subpop)                 ;; randomize the turtle locations
      (random-normal 0 subpop-radius / 3  + item 1 subpop)
-  set knowhow (random-normal start-know 0.5)
+  set language (list start-know)
   set color tc
   set homesubpop subpop
   set destsubpop false
@@ -152,42 +152,34 @@ to go
                                            ;  if (ticks = simulation-runtime) [(show "time's up!") stop]
 end
 
-
-to take-food
-  let k 0
-
-  set k knowhow
-; here-list is taken to refer to a value of patch-here. This is good
-
-  ; if there was regular food and the agent had less then max enenrgy, it has been eaten
-  ; if there wasn't first here-list will remain 0
-  ; the rest of here-list has to be updated depending on agent know-how
-  ; because we are now in a patch procedure, turtle know-how cannot be accesed and has
-  ; to be stored in an extra variable
-  ; `update-patches' actually works on 1 patch at the time
-end
-
 to communicate
-  let k 0
-  set k knowhow
-  ask turtles in-radius broadcast-radius [getknow k]
+  let lang language
+  ask turtles in-radius broadcast-radius [talkwith lang]
+  ;; talk to a turtle or all turtles in radius
+  ; my language is a list [a_1, ..., a_n]
+  ; when I talk to someone else, for each language in my list I sum our values and pick a value from a gaussian distribution with the mean of our languages as the mean and beta as the standard deviation.
+  ; I have a fixed chance of alpha * 1/(n+1) of adding a new language to all turtles
+  ; if I invent a new language, all turtles need to add the language to their list of possible languages to learn
+  ; After making my adjustments, my list is adjusted so that the sum of my list is equal to 1.
+  ; optional: if the total difference between my list and another turtle's list is over 50%, I cannot talk to them
+
+
 end
 
-to getknow [know]
+to talkwith [otherlang]
   ;;if(know >= knowhow)[set knowhow knowhow + (know - knowhow) * (1 + ifelse-value(random-float 1 > beta)[alpha][ 0 - alpha])];
 
-
-  if (know >= knowhow)[
-    ifelse (random-float 1 > alpha) [
-      ifelse (random-float 1 > beta) [
-        set knowhow (know + random-float (20 - know))
-      ][
-        set knowhow know
-      ]
-    ][
-      set knowhow (know - (random-float (know - 1)))
-    ]
-  ]
+;  if (know >= knowhow)[
+;    ifelse (random-float 1 > alpha) [
+;      ifelse (random-float 1 > beta) [
+;        set knowhow (know + random-float (20 - know))
+;      ][
+;        set knowhow know
+;      ]
+;    ][
+;      set knowhow (know - (random-float (know - 1)))
+;    ]
+;  ]
 end
 
 ;;;;;;;;;;HOW TO MOVE;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -261,36 +253,36 @@ end
 ;; number of different things in the environment, then it is set back to 1
 ;; the value of show-knowledge corresponds to the turtles' knowledge-slots
 
-to flip-color
+;to flip-color
+;
+;if (num-special-food-strat != 0)
+; [ set show-knowledge (show-knowledge + 1)
+;   if show-knowledge > num-special-food-strat [set show-knowledge 1]
+;   ask turtles [ update-looks-knowhow ]
+; ]
+;end
 
-if (num-special-food-strat != 0)
- [ set show-knowledge (show-knowledge + 1)
-   if show-knowledge > num-special-food-strat [set show-knowledge 1]
-   ask turtles [ update-looks-knowhow ]
- ]
-end
+;to knowledge-gradient
+;
+;set show-knowledge (num-special-food-strat + 42)
+;ask turtles [ update-looks-gradient ]
+;end
 
-to knowledge-gradient
+;to update-looks-knowhow
+;ifelse (show-knowledge > num-special-food-strat) [ update-looks-gradient ]
+;                                                 [ set color ifelse-value (item (show-knowledge - 1) knowhow = 1)[ktc][tc] ]
+;end
 
-set show-knowledge (num-special-food-strat + 42)
-ask turtles [ update-looks-gradient ]
-end
-
-to update-looks-knowhow
-ifelse (show-knowledge > num-special-food-strat) [ update-looks-gradient ]
-                                                 [ set color ifelse-value (item (show-knowledge - 1) knowhow = 1)[ktc][tc] ]
-end
-
-to update-looks-gradient
-let k (sum knowhow)
-set color ifelse-value (k = 0)[tc] [ifelse-value
-                       (k = 1)[106] [ifelse-value
-                       (k = 2)[116 ] [ifelse-value
-                       (k = 3)[126] [ifelse-value
-                       (k = 4)[136] ; k > 4
-                              [9] ]]]]
-
-end
+;to update-looks-gradient
+;let k (sum knowhow)
+;set color ifelse-value (k = 0)[tc] [ifelse-value
+;                       (k = 1)[106] [ifelse-value
+;                       (k = 2)[116 ] [ifelse-value
+;                       (k = 3)[126] [ifelse-value
+;                       (k = 4)[136] ; k > 4
+;                              [9] ]]]]
+;
+;end
 
 ;to update-patches-food
 ;set color (((only-one (item (show-knowledge - 1) (butfirst (herelist)))) * 10 * show-knowledge) + 14 )
@@ -340,9 +332,9 @@ to-report safe-mean[lll]
   ifelse(length lll > 0)[report mean lll][report 0]
 end
 
-to-report avg-know
-  report safe-mean [knowhow] of turtles
-end
+;to-report avg-know
+;  report safe-mean [knowhow] of turtles
+;end
 
 to-report field
 report (world-width  * world-height)
@@ -354,57 +346,57 @@ ifelse (n > 0) [report 1] [report 0]
 end
 
 ;returns some information on the knowledge spread and the amount of food
-to show-values
-let soc-turtles (turtle-set )
-let n 0
-  let t 0
-
-set n 0
-set t ((count soc-turtles) / 100)
-print (word "time: " ticks ", agents: " round (t * 100))
-repeat num-special-food-strat
-    [ print ( word
-               count soc-turtles with [ item n knowhow = 1]
-               " agents know item " (n + 1)
-               " (" precision ((count soc-turtles with [ item n knowhow = 1]) / t) 3 "%)")
-      print ( word
-               count soc-turtles with [ (sum knowhow) = (n + 1) ]
-               " agents know " (n + 1) " items"
-               " (" precision ((count soc-turtles with [ sum knowhow = (n + 1) ]) / t) 3 "%)")
-      print ( word
-               count patches with [ item (n + 1) here-list = 1 ]
-               "patches have food type " (n + 1))
-      set n (n + 1)
-               ]
-print (word (count patches with [first here-list = 1]) " patches with regular food")
-print (word (count soc-turtles with [sum knowhow =  0]) " agents know nothing")
-print (word "total food = " (((count patches with [first here-list = 1]) * 5)
-                            + ((count patches with [sum butfirst here-list = 1]) * 10)))
-print (word "patches with regular food " (count patches with [first here-list = 1])
-            " (" precision (((count patches with [first here-list = 1]) / field) * 100) 2 "%)")
-end
+;to show-values
+;let soc-turtles (turtle-set )
+;let n 0
+;  let t 0
+;
+;set n 0
+;set t ((count soc-turtles) / 100)
+;print (word "time: " ticks ", agents: " round (t * 100))
+;repeat num-special-food-strat
+;    [ print ( word
+;               count soc-turtles with [ item n knowhow = 1]
+;               " agents know item " (n + 1)
+;               " (" precision ((count soc-turtles with [ item n knowhow = 1]) / t) 3 "%)")
+;      print ( word
+;               count soc-turtles with [ (sum knowhow) = (n + 1) ]
+;               " agents know " (n + 1) " items"
+;               " (" precision ((count soc-turtles with [ sum knowhow = (n + 1) ]) / t) 3 "%)")
+;      print ( word
+;               count patches with [ item (n + 1) here-list = 1 ]
+;               "patches have food type " (n + 1))
+;      set n (n + 1)
+;               ]
+;print (word (count patches with [first here-list = 1]) " patches with regular food")
+;print (word (count soc-turtles with [sum knowhow =  0]) " agents know nothing")
+;print (word "total food = " (((count patches with [first here-list = 1]) * 5)
+;                            + ((count patches with [sum butfirst here-list = 1]) * 10)))
+;print (word "patches with regular food " (count patches with [first here-list = 1])
+;            " (" precision (((count patches with [first here-list = 1]) / field) * 100) 2 "%)")
+;end
 
 
 ;;;;;;;;;;;;;;;THE PLOTTING PART;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to update-plot
-update-plot-all
+;update-plot-all
 ;update-plot-offspring
 ; update-speaking-cost-over-time
 ;update-type-of-food
 end
 
-to update-plot-all
-let c 0
-;locals [c r]
-set-current-plot "plot-all"
-set-current-plot-pen "turtles"
-  plot count turtles
-set-current-plot-pen "reg-food"
-  plot ceiling ( 0.2 * (count patches with [ here-list = 1 ]))
-set-current-plot-pen "know"
-  if (count turtles != 0) [ plot ceiling (100 * (avg-know))]
-end
+;to update-plot-all
+;let c 0
+;;locals [c r]
+;set-current-plot "plot-all"
+;set-current-plot-pen "turtles"
+;  plot count turtles
+;set-current-plot-pen "reg-food"
+;  plot ceiling ( 0.2 * (count patches with [ here-list = 1 ]))
+;set-current-plot-pen "know"
+;  if (count turtles != 0) [ plot ceiling (100 * (avg-know))]
+;end
 
 ;plots the age of the turtles having offspring
 to update-plot-offspring

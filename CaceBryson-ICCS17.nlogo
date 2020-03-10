@@ -159,31 +159,32 @@ end
 to communicate
   let lang language
   ask turtles in-radius broadcast-radius [talkwith lang]
-  ;; talk to a turtle or all turtles in radius
-  ; my language is a list [a_1, ..., a_n]
-  ; when I talk to someone else, for each language in my list I sum our values and pick a value from a gaussian distribution with the mean of our languages as the mean and beta as the standard deviation.
-  ; I have a fixed chance of alpha * 1/(n+1) of adding a new language to all turtles
-  ; if I invent a new language, all turtles need to add the language to their list of possible languages to learn
-  ; After making my adjustments, my list is adjusted so that the sum of my list is equal to 1.
-  ; optional: if the total difference between my list and another turtle's list is over 50%, I cannot talk to them
-
-
 end
 
 to talkwith [otherlang]
-  ;;if(know >= knowhow)[set knowhow knowhow + (know - knowhow) * (1 + ifelse-value(random-float 1 > beta)[alpha][ 0 - alpha])];
+  show language
+  show otherlang
+  let intermediate (map get_lang language otherlang)
+  if (random 100 < (alpha / length (filter [x -> x > 0] language)))[
+    if(all? turtles [set_language_success])[
+      set intermediate lput (max (list (random-normal 0 beta) 0)) intermediate
+    ]
+  ]
+  let meaninter sum intermediate
+  set language map [x -> x / meaninter] intermediate
+end
 
-;  if (know >= knowhow)[
-;    ifelse (random-float 1 > alpha) [
-;      ifelse (random-float 1 > beta) [
-;        set knowhow (know + random-float (20 - know))
-;      ][
-;        set knowhow know
-;      ]
-;    ][
-;      set knowhow (know - (random-float (know - 1)))
-;    ]
-;  ]
+to-report set_language_success
+  set language lput 0 language
+  report True
+end
+
+
+to-report get_lang [value1 value2]
+  if (value1 + value2 = 0) [
+    report 0
+  ]
+  report random-normal ((value1 + value2) / 2) beta
 end
 
 ;;;;;;;;;;HOW TO MOVE;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -581,7 +582,7 @@ start-know
 start-know
 1
 20
-10.0
+1.0
 1
 1
 NIL
@@ -671,7 +672,7 @@ migration-chance
 migration-chance
 0
 1
-1.0
+0.0
 0.001
 1
 NIL

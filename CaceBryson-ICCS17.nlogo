@@ -47,6 +47,7 @@ globals [ extra-list                  ;; holds the values for the different type
           foodstrat-graph-const       ;; multiplier based on num-food-strat for the combined plot
           tc                          ; social turtle colour
           ktc                         ; turtles-that-know-something-you-are-looking-at colour
+          subpops
           ]
 
 
@@ -55,6 +56,8 @@ patches-own [ here-list ]   ;;hold a value describing the type of food that is o
 turtles-own [ age
               energy
               knowhow
+              homesubpop
+              destsubpop
                ]
 
 
@@ -83,6 +86,9 @@ to setup-globals
   set tc 97                 ;; color for ignorant turtles when using the "show knowledge" buttons
   set ktc 125               ;; color for turtles who know what you want to check on, as per previous line
 ;  set knowledge-transfer 0   ; see comment about this at the top of the file.  Variable not used now.
+
+  set subpops []
+  repeat subpop-count [set subpops lput randxy subpops]
 end
 
 
@@ -113,25 +119,40 @@ end
 ;;;;;turtles
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to-report randxy
+   report list ((random world-width) - world-width / 2) ((random world-height) - world-height / 2)
+end
+
 to setup-agents
-  crt start-num-turtles                                   ;; create given number of turtles
-  ask turtles [set age random lifespan                    ;; set age to hatchlings (fput kind hatchlingsrandom number < lifespan
-               setxy (random world-width)                 ;; randomize the turtle locations
-                        (random world-height)
-               set energy (random-normal 18 0.9 )
-               set knowhow (random-normal start-know 0.5)
-               set color tc ]
+  foreach subpops setup_subpop
+end
+
+to setup_subpop [subpop]
+
+  crt start-num-turtles [setup_turtle (subpop)]
+end
+
+
+to setup_turtle[subpop]
+  set age random lifespan                    ;; set age to hatchlings (fput kind hatchlingsrandom number < lifespan
+  setxy (random-normal 0 subpop-radius / 2 + item 0 subpop)                 ;; randomize the turtle locations
+     (random-normal 0 subpop-radius / 2 + item 1 subpop)
+  set energy (random-normal 18 0.9 )
+  set knowhow (random-normal start-know 0.5)
+  set color tc
+  set homesubpop subpop
+  set destsubpop false
 end
 
 to go
   tick
   ask (turtles) [
-                take-food
-                if (random energy) > 30 [give-birth ]   ; "30" should really be a variable too; this is bad style to bury a parameter like this. Determines amount of investment per child
-                set energy (energy - 1)
+                ;take-food
+                ;if (random energy) > 30 [give-birth ]   ; "30" should really be a variable too; this is bad style to bury a parameter like this. Determines amount of investment per child
+                ;set energy (energy - 1)
                 move-somewhere
-                set age (age + 1)
-                live-or-die
+                ;set age (age + 1)
+                ;live-or-die
                 communicate
               ]
 ;  if (food-depletes?) [ ; conditionals slow things down, but we used this initially to debug.  But it's not very ecological to be able to eat without destroying the plants!
@@ -190,11 +211,10 @@ to getknow [know]
 end
 
 to live-or-die
-
-  if (energy < 0) or (age > lifespan)
+  if (energy <= 0) or (age > lifespan)
                  [
                    ; show word word energy " is energy, age is " age
-                   die
+                   ;die
                  ]
 end
 
@@ -218,8 +238,34 @@ end
 ;;            run-dist          ;; approx distance moved per turn , see below
 ;;            travel-mode       ;; exact distance; levi flight; smooth distribution; or warp
 to move-somewhere
+
+
+  ifelse (inradofpop)[
+  set destsubpop false
+  ; get rid of picked subpop if subpop was picked
   rt random 360  ; turn somewhere (silly if warping)
+  ][
+    if (not destsubpop)[
+      let target item random (subpop-count) subpops
+      let ddx (item 0 target) - xcor
+      let ddy (item 1 target) - ycor
+      set heading (atan ddx ddy)
+    ; pick a random subpop and rotate towards it
+     ; set destsubpop to true
+      set destsubpop true
+    ]
+  ]
+  ;else pick a subpop if subpop has not been picked already and move towards it
+
   move-forward
+end
+
+to-report inradofpop
+  report reduce [[x y] -> x or y] (map [x -> (inradius(x))] subpops)
+end
+
+to-report inradius [subpop]
+  report sqrt ((item 0 subpop - xcor) ^ 2 + (item 1 subpop - ycor) ^ 2) <= subpop-radius
 end
 
 to move-forward
@@ -422,8 +468,8 @@ end
 GRAPHICS-WINDOW
 365
 10
-1341
-987
+701
+347
 -1
 -1
 8.0
@@ -436,10 +482,10 @@ GRAPHICS-WINDOW
 1
 1
 1
--60
-60
--60
-60
+-20
+20
+-20
+20
 0
 0
 1
@@ -597,9 +643,9 @@ SLIDER
 start-num-turtles
 start-num-turtles
 0
-4000
-750.0
-250
+1000
+1.0
+10
 1
 NIL
 HORIZONTAL
@@ -613,7 +659,7 @@ food-replacement-rate
 food-replacement-rate
 0
 10
-0.5
+2.3
 .1
 1
 % per cycle
@@ -658,7 +704,7 @@ alpha
 alpha
 0
 1
-0.1
+0.27
 0.01
 1
 NIL
@@ -673,7 +719,7 @@ beta
 beta
 0
 .9
-0.1
+0.29
 0.01
 1
 NIL
@@ -689,6 +735,36 @@ avg-know
 17
 1
 11
+
+SLIDER
+14
+378
+186
+411
+subpop-count
+subpop-count
+1
+100
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+191
+378
+363
+411
+subpop-radius
+subpop-radius
+0
+10
+3.0
+0.1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?

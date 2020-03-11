@@ -132,7 +132,7 @@ end
 to setup_turtle[subpop]
   setxy (random-normal 0 subpop-radius / 3 + item 0 subpop)                 ;; randomize the turtle locations
      (random-normal 0 subpop-radius / 3  + item 1 subpop)
-  set language (list start-know 0 0 0 0 0 0 0 0 0)
+  set language start-know
   set color tc
   set homesubpop subpop
   set destsubpop false
@@ -153,12 +153,10 @@ to go
 
   ]
   ask (turtles) [
-  show language
+ ; show language
   ]
 
-  if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
-                                           ; if (count turtles = 0) [(show (word "turtles became extinct at:" ticks)) stop] ;; never happens so excised for speed
-                                           ;  if (ticks = simulation-runtime) [(show "time's up!") stop]
+
 end
 
 to communicate
@@ -167,13 +165,21 @@ to communicate
 end
 
 to talkwith [otherlang]
-  let intermediate (map get_lang language otherlang)
-  if (random 100 < (alpha))[
-    let index random (length language)
-    set intermediate replace-item  index intermediate (max (list (random-normal (item index intermediate) beta) 0.00001))
+  if (abs (language - otherlang ) < comm-threshhold) [
+    set language random-normal ((language + otherlang) / 2) beta
+    update-color
   ]
-  let meaninter sum intermediate
-  set language map [x -> x / meaninter] intermediate
+;  let intermediate (map get_lang language otherlang)
+;  if (random 100 < (alpha))[
+;    let index random (length language)
+;    set intermediate replace-item  index intermediate (max (list (random-normal (item index intermediate) beta) 0.00001))
+;  ]
+;  let meaninter sum intermediate
+;  set language map [x -> x / meaninter] intermediate
+end
+
+to update-color
+  set color (floor (language / 20)) * 10 + 5
 end
 
 
@@ -198,7 +204,7 @@ to move-somewhere
       set migrating false
     ]
   ][
-    ifelse(random 100 < migration-chance)[ ;; if migrate
+    ifelse(random-float 100 < migration-chance)[ ;; if migrate
       set destsubpop one-of subpops-patches
       set migrating true
       face destsubpop
@@ -522,9 +528,9 @@ SLIDER
 271
 run-dist
 run-dist
-0
+0.0001
 5
-1.5
+0.2501
 0.25
 1
 NIL
@@ -564,7 +570,7 @@ broadcast-radius
 broadcast-radius
 0
 10
-3.6
+0.5
 .1
 1
 NIL
@@ -577,10 +583,10 @@ SLIDER
 108
 start-know
 start-know
-1.0
-2.0
-1.0
-0.00001
+0
+100
+50.0
+1
 1
 NIL
 HORIZONTAL
@@ -594,7 +600,7 @@ alpha
 alpha
 0
 1
-1.0
+0.0
 0.01
 1
 NIL
@@ -639,7 +645,7 @@ subpop-radius
 subpop-radius
 0
 10
-2.9
+3.0
 0.1
 1
 NIL
@@ -654,23 +660,38 @@ migration-chance
 migration-chance
 0
 100
-0.0
+0.00172
 1
 1
 %
 HORIZONTAL
 
 SLIDER
-184
-288
-356
-321
+97
+531
+1070
+564
 migration-chance
 migration-chance
 0
+0.05
+0.00172
+0.00001
 1
-0.0
-0.001
+NIL
+HORIZONTAL
+
+SLIDER
+189
+340
+361
+373
+comm-threshhold
+comm-threshhold
+0
+100
+28.0
+1
 1
 NIL
 HORIZONTAL

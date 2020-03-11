@@ -180,7 +180,7 @@ to communicate
 end
 
 to talkwith [otherlang]
-  let diff-val mean map abs (map - language otherlang)
+  let diff-val max map abs (map - language otherlang)
 
   if (diff-val < comm-threshhold) [
     let intermediate (map get_lang language otherlang)

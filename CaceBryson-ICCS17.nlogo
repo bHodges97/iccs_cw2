@@ -132,13 +132,17 @@ end
 to setup_turtle[subpop]
   setxy (random-normal 0 subpop-radius / 3 + item 0 subpop)                 ;; randomize the turtle locations
      (random-normal 0 subpop-radius / 3  + item 1 subpop)
-  set language (list start-know 0 0 0 0 0 0 0 0 0)
+  set language []
+  repeat language-count [set language lput 0.00001 language]
+  set language replace-item 0 language 1
   set color tc
   set homesubpop subpop
   set destsubpop false
   set lastsubpop patch (item 0 subpop) (item 1 subpop)
   set migrating false
+  update-color
 end
+
 
 to go
   tick
@@ -162,12 +166,12 @@ end
 
 to communicate
   let lang language
-  ask turtles in-radius broadcast-radius [talkwith lang]
+  ask one-of turtles in-radius broadcast-radius [talkwith lang]
 end
 
 to talkwith [otherlang]
   let intermediate (map get_lang language otherlang)
-  if (random 100 < alpha)[
+  if (random-float 100 < alpha)[
     let index random (length language)
     ;pick random index in language, calculate a random value from its current value and beta using normal distribution and replace the index with the random value
     let new_value random-normal (item index intermediate) beta
@@ -179,14 +183,12 @@ to talkwith [otherlang]
 end
 
 to update-color
-  let l max language
-  let i position l language
-  set color (i + 1) * 10 + 5
+  set color (position (max language) language + 1) * 10 + 5
 end
 
 
 to-report get_lang [value1 value2]
-  if (value1 + value2 = 0) [
+  if (value1 + value2 = 0.00002) [
     report 0.00001
   ]
   report max (list random-normal ((value1 + value2) / 2) beta 0.00001)
@@ -206,7 +208,7 @@ to move-somewhere
       set migrating false
     ]
   ][
-    ifelse(random 100 < migration-chance)[ ;; if migrate
+    ifelse(random-float 100 < migration-chance)[ ;; if migrate
       set destsubpop one-of subpops-patches
       set migrating true
       face destsubpop
@@ -424,10 +426,10 @@ set-plot-pen-mode 2
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-365
-10
-1181
-507
+376
+20
+1192
+517
 -1
 -1
 8.0
@@ -532,7 +534,7 @@ run-dist
 run-dist
 0
 5
-1.5
+0.5
 0.25
 1
 NIL
@@ -572,7 +574,7 @@ broadcast-radius
 broadcast-radius
 0
 10
-3.6
+1.1
 .1
 1
 NIL
@@ -602,7 +604,7 @@ alpha
 alpha
 0
 1
-0.0
+1.0
 0.01
 1
 NIL
@@ -617,7 +619,7 @@ beta
 beta
 0
 .9
-0.03
+0.07
 0.01
 1
 NIL
@@ -662,7 +664,7 @@ migration-chance
 migration-chance
 0
 100
-0.108
+0.166
 1
 1
 %
@@ -677,8 +679,23 @@ migration-chance
 migration-chance
 0
 1
-0.108
+0.166
 0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+192
+79
+364
+112
+language-count
+language-count
+0
+10
+3.0
+1
 1
 NIL
 HORIZONTAL

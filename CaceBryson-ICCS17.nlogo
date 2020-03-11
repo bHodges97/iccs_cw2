@@ -153,7 +153,6 @@ to go
 
   ]
   ask (turtles) [
-  show language
   ]
 
   if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
@@ -168,12 +167,21 @@ end
 
 to talkwith [otherlang]
   let intermediate (map get_lang language otherlang)
-  if (random 100 < (alpha))[
+  if (random 100 < alpha)[
     let index random (length language)
-    set intermediate replace-item  index intermediate (max (list (random-normal (item index intermediate) beta) 0.00001))
+    ;pick random index in language, calculate a random value from its current value and beta using normal distribution and replace the index with the random value
+    let new_value random-normal (item index intermediate) beta
+    set intermediate replace-item  index intermediate (max (list new_value 0.00001))
   ]
   let meaninter sum intermediate
   set language map [x -> x / meaninter] intermediate
+  update-color
+end
+
+to update-color
+  let l max language
+  let i position l language
+  set color (i + 1) * 10 + 5
 end
 
 
@@ -594,7 +602,7 @@ alpha
 alpha
 0
 1
-1.0
+0.0
 0.01
 1
 NIL
@@ -609,7 +617,7 @@ beta
 beta
 0
 .9
-0.9
+0.03
 0.01
 1
 NIL
@@ -654,7 +662,7 @@ migration-chance
 migration-chance
 0
 100
-0.0
+0.108
 1
 1
 %
@@ -669,7 +677,7 @@ migration-chance
 migration-chance
 0
 1
-0.0
+0.108
 0.001
 1
 NIL
@@ -1044,7 +1052,7 @@ Polygon -6459832 true true 38 138 66 149
 Polygon -6459832 true true 46 128 33 120 21 118 11 123 3 138 5 160 13 178 9 192 0 199 20 196 25 179 24 161 25 148 45 140
 Polygon -6459832 true true 67 122 96 126 63 144
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.1.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

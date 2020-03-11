@@ -134,7 +134,13 @@ to setup_turtle[subpop]
      (random-normal 0 subpop-radius / 3  + item 1 subpop)
   set language []
   repeat language-count [set language lput 0.00001 language]
-  set language replace-item 0 language start-know
+
+  let index 0
+  if(random-initial-lang?)[
+    set index position subpop subpops mod language-count
+  ]
+
+  set language replace-item index language start-know
   set color tc
   set homesubpop subpop
   set destsubpop false
@@ -142,6 +148,7 @@ to setup_turtle[subpop]
   set migrating false
   update-color
 end
+
 
 to go
   tick
@@ -192,11 +199,7 @@ end
 
 
 to-report get_lang [value1 value2]
-  ifelse (value1 + value2 <= 0.00002) [
-    report 0.00001
-  ][
-    report random-normal (value1 + value2) / 2 beta
-  ]
+  report random-normal ((value1 + value2) / 2) beta
 end
 
 to update-color
@@ -694,7 +697,7 @@ language-count
 language-count
 1
 10
-6.0
+2.0
 1
 1
 NIL
@@ -725,6 +728,17 @@ start-know
 1
 NIL
 HORIZONTAL
+
+SWITCH
+114
+47
+316
+80
+random-initial-lang?
+random-initial-lang?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?

@@ -103,9 +103,9 @@ end
 to setup-patches
   ask patches [
     ifelse(any? subpops-patches in-radius (subpop-radius)) [
-      set pcolor 41
+      set pcolor 19
     ][
-      set pcolor 42
+      set pcolor 9.9
     ]
   ]
   ask subpops-patches [ set pcolor (60) ]
@@ -132,12 +132,15 @@ end
 to setup_turtle[subpop]
   setxy (random-normal 0 subpop-radius / 3 + item 0 subpop)                 ;; randomize the turtle locations
      (random-normal 0 subpop-radius / 3  + item 1 subpop)
-  set language start-know
+  set language []
+  repeat language-count [set language lput 0.00001 language]
+  set language replace-item 0 language start-know
   set color tc
   set homesubpop subpop
   set destsubpop false
   set lastsubpop patch (item 0 subpop) (item 1 subpop)
   set migrating false
+  update-color
 end
 
 to go
@@ -153,42 +156,58 @@ to go
 
   ]
   ask (turtles) [
- ; show language
   ]
 
-
+  if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
+                                           ; if (count turtles = 0) [(show (word "turtles became extinct at:" ticks)) stop] ;; never happens so excised for speed
+                                           ;  if (ticks = simulation-runtime) [(show "time's up!") stop]
 end
 
 to communicate
   let lang language
-  ask turtles in-radius broadcast-radius [talkwith lang]
+  ifelse(talk-to-all?)[
+    ask turtles in-radius broadcast-radius [talkwith lang]
+  ][
+    ask one-of turtles in-radius broadcast-radius [talkwith lang]
+  ]
 end
 
 to talkwith [otherlang]
-  if (abs (language - otherlang ) < comm-threshhold) [
-    set language random-normal ((language + otherlang) / 2) beta
+  let diff-val mean map abs (map - language otherlang)
+
+  if (diff-val < comm-threshhold) [
+    let intermediate (map get_lang language otherlang)
+
+    if (random-float 100 < alpha)[
+      let index random (length language)
+      set intermediate replace-item  index intermediate random-normal (item index intermediate) beta
+    ]
+    set language intermediate
+    ;let meaninter sum intermediate
+    ;set language map [x -> x / meaninter] intermediate
+
     update-color
   ]
-;  let intermediate (map get_lang language otherlang)
-;  if (random 100 < (alpha))[
-;    let index random (length language)
-;    set intermediate replace-item  index intermediate (max (list (random-normal (item index intermediate) beta) 0.00001))
-;  ]
-;  let meaninter sum intermediate
-;  set language map [x -> x / meaninter] intermediate
-end
-
-to update-color
-  set color (floor (language / 20)) * 10 + 5
 end
 
 
 to-report get_lang [value1 value2]
-  if (value1 + value2 = 0) [
+  ifelse (value1 + value2 <= 0.00002) [
     report 0.00001
+  ][
+    report random-normal (value1 + value2) / 2 beta
   ]
-  report max (list random-normal ((value1 + value2) / 2) beta 0.00001)
 end
+
+to update-color
+  ifelse(language-count = 1)[
+    set color (floor (item 0 language / 20)) * 10 + 5
+  ][
+    let i position (max language) language
+    set color (i + 1) * 10 + 5
+  ]
+end
+
 
 ;;;;;;;;;;HOW TO MOVE;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -577,21 +596,6 @@ NIL
 HORIZONTAL
 
 SLIDER
-9
-75
-181
-108
-start-know
-start-know
-0
-100
-50.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
 11
 194
 183
@@ -600,7 +604,7 @@ alpha
 alpha
 0
 1
-0.0
+1.0
 0.01
 1
 NIL
@@ -645,52 +649,78 @@ subpop-radius
 subpop-radius
 0
 10
-3.0
+2.9
 0.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-85
-436
-285
-469
+15
+362
+238
+395
 migration-chance
 migration-chance
 0
-100
+0.01
 0.00172
-1
+0.0001
 1
 %
 HORIZONTAL
 
 SLIDER
-97
-531
-1070
-564
-migration-chance
-migration-chance
-0
-0.05
-0.00172
-0.00001
-1
-NIL
-HORIZONTAL
-
-SLIDER
-189
-340
-361
-373
+13
+314
+185
+347
 comm-threshhold
 comm-threshhold
 0
 100
 28.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+10
+81
+182
+114
+language-count
+language-count
+1
+10
+6.0
+1
+1
+NIL
+HORIZONTAL
+
+SWITCH
+183
+80
+314
+113
+talk-to-all?
+talk-to-all?
+0
+1
+-1000
+
+SLIDER
+201
+118
+373
+151
+start-know
+start-know
+1
+100
+55.0
 1
 1
 NIL
@@ -1065,7 +1095,7 @@ Polygon -6459832 true true 38 138 66 149
 Polygon -6459832 true true 46 128 33 120 21 118 11 123 3 138 5 160 13 178 9 192 0 199 20 196 25 179 24 161 25 148 45 140
 Polygon -6459832 true true 67 122 96 126 63 144
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.1.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

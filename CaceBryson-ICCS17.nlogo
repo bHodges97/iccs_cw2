@@ -53,7 +53,7 @@ globals [
 ]
 
 
-patches-own [ here-list ]   ;;hold a value describing the type of food that is on this patch, -1 if empty
+patches-own [ value ]   ;;hold a value describing the type of food that is on this patch, -1 if empty
 
 turtles-own [
   language
@@ -102,6 +102,7 @@ end
 ;; at setup time, we run what happens normally a few times to get some food grown up
 to setup-patches
   ask patches [
+    set value 0
     ifelse(any? subpops-patches in-radius (subpop-radius)) [
       set pcolor 19
     ][
@@ -142,7 +143,7 @@ to setup_turtle[subpop]
 
   set language replace-item index language start-know
   set color tc
-  set homesubpop subpop
+  set homesubpop patch (item 0 subpop) (item 1 subpop)
   set destsubpop false
   set lastsubpop patch (item 0 subpop) (item 1 subpop)
   set migrating false
@@ -235,9 +236,7 @@ to move-somewhere
     ]
   ][
     ifelse(random-float 100 < migration-chance)[ ;; if migrate
-      set destsubpop one-of subpops-patches
-      set migrating true
-      face destsubpop
+      migrate
     ][;; if at home
       ifelse(not any? near)[
         face lastsubpop
@@ -249,6 +248,70 @@ to move-somewhere
   ]
 
   move-forward
+end
+
+to migrate
+  set destsubpop (ifelse-value
+    (migration-options = "population")[
+      rand-pop-target
+    ]
+    (migration-options = "distance")[
+      rand-dist-target
+    ]
+    (migration-options = "homesick" and lastsubpop != homesubpop)[
+      homesubpop
+    ]
+    [
+      one-of subpops-patches
+    ]
+  )
+
+  set migrating true
+  face destsubpop
+end
+
+to-report rand-dist-target
+  let distances [distance myself] of subpops-patches
+  let distance_sum sum distances
+  set distances map [x ->  1 - x / distance_sum] distances
+  let distance_pick random-float sum distances
+  let target 0
+  ask subpops-patches [
+    let num 1 - (distance myself / distance_sum)
+    ifelse (num > distance_pick) [
+      if (target = 0)[
+        set target self
+      ]
+    ][
+      set distance_pick distance_pick - num
+    ]
+  ]
+  ifelse (target = 0)[
+    report one-of subpops-patches
+  ][
+    report target
+  ]
+end
+
+to-report rand-pop-target
+  let pops [count turtles in-radius subpop-radius] of subpops-patches
+  let pop_pick random-float sum pops
+  let target 0
+  ask subpops-patches [
+    let num count turtles in-radius subpop-radius
+    ifelse (num > pop_pick) [
+      if (target = 0)[
+        set target self
+      ]
+    ][
+      set pop_pick pop_pick -  num
+    ]
+  ]
+  ifelse (target = 0)[
+    report one-of subpops-patches
+  ][
+    report target
+  ]
 end
 
 to-report inradiusofpop
@@ -645,7 +708,7 @@ subpop-count
 subpop-count
 1
 100
-7.0
+4.0
 1
 1
 NIL
@@ -674,8 +737,8 @@ SLIDER
 migration-chance
 migration-chance
 0
-0.01
-0.00172
+1
+0.4904
 0.0001
 1
 %
@@ -747,6 +810,16 @@ random-initial-lang?
 1
 1
 -1000
+
+CHOOSER
+208
+293
+346
+338
+migration-options
+migration-options
+"none" "distance" "population" "homesick"
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1117,7 +1190,7 @@ Polygon -6459832 true true 38 138 66 149
 Polygon -6459832 true true 46 128 33 120 21 118 11 123 3 138 5 160 13 178 9 192 0 199 20 196 25 179 24 161 25 148 45 140
 Polygon -6459832 true true 67 122 96 126 63 144
 @#$#@#$#@
-NetLogo 6.1.0
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

@@ -53,7 +53,9 @@ globals [
 ]
 
 
-patches-own [ here-list ]   ;;hold a value describing the type of food that is on this patch, -1 if empty
+patches-own [ here-list
+  ppcolor
+]   ;;hold a value describing the type of food that is on this patch, -1 if empty
 
 turtles-own [
   language
@@ -162,12 +164,27 @@ to go
     communicate
 
   ]
-  ask (turtles) [
-  ]
 
   ask subpops-patches [
+    let l [language] of turtles in-radius subpop-radius
+    let z length l
+    let j reduce list-sum l
+    let ii map [x -> x / z] j
 
+    ifelse(language-count = 1)[
+      set ppcolor (floor (item 0 ii / 20)) * 10 + 5
+    ][
+      let i position (max ii) ii
+      set ppcolor (i + 1) * 10 + 5
+    ]
   ]
+
+  ask subpops-patches[
+    ask patches in-radius subpop-radius[
+      set pcolor ([ppcolor + 3] of myself)
+    ]
+  ]
+
 
   if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
                                            ; if (count turtles = 0) [(show (word "turtles became extinct at:" ticks)) stop] ;; never happens so excised for speed
@@ -744,7 +761,7 @@ SWITCH
 80
 random-initial-lang?
 random-initial-lang?
-1
+0
 1
 -1000
 

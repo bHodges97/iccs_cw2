@@ -165,9 +165,17 @@ to go
   ask (turtles) [
   ]
 
+  ask subpops-patches [
+
+  ]
+
   if remainder ticks 8 = 0 [update-plot]   ; only update plots one tick in 8.  Note you can comment this out to make it run faster too.
                                            ; if (count turtles = 0) [(show (word "turtles became extinct at:" ticks)) stop] ;; never happens so excised for speed
                                            ;  if (ticks = simulation-runtime) [(show "time's up!") stop]
+end
+
+to-report list-sum [lista listb]
+  report (map + lista listb)
 end
 
 to communicate

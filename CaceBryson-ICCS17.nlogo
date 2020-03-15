@@ -50,6 +50,8 @@ globals [
   ktc                         ; turtles-that-know-something-you-are-looking-at colour
   subpops
   subpops-patches
+  language-counter-subpops
+  language-counter-turtles
 ]
 
 patches-own [ here-list
@@ -154,15 +156,13 @@ end
 
 to go
   tick
-  ask (turtles) [
-    ;take-food
-    ;if (random energy) > 30 [give-birth ]   ; "30" should really be a variable too; this is bad style to bury a parameter like this. Determines amount of investment per child
-    ;set energy (energy - 1)
-    move-somewhere
-    ;set age (age + 1)
-    ;live-or-die
-    communicate
+  set language-counter-subpops list-zeros(14)
+  set language-counter-turtles list-zeros(14)
 
+  ask (turtles) [
+    move-somewhere
+    communicate
+    set language-counter-turtles list-increment language-counter-turtles floor (color / 10)
   ]
 
   ask subpops-patches [
@@ -177,6 +177,8 @@ to go
       let i position (max ii) ii
       set ppcolor (i + 1) * 10 + 5
     ]
+
+    set language-counter-subpops list-increment language-counter-subpops floor (ppcolor / 10)
   ]
 
   ask subpops-patches[
@@ -194,6 +196,17 @@ end
 to-report list-sum [lista listb]
   report (map + lista listb)
 end
+
+to-report list-zeros [list-size]
+  let out []
+  repeat list-size [set out lput 0 out]
+  report out
+end
+
+to-report list-increment [array offset]
+  report replace-item offset array (item offset array + 1)
+end
+
 
 to communicate
   let lang language
@@ -308,6 +321,13 @@ to-report rand-dist-target
     report target
   ]
 end
+
+;TODO
+; graph of sub=pop colours over time
+; graph of turtles colour over time
+; graph of turtles migrating count over time
+; graph of distinct \/
+;  \-;-/
 
 to-report rand-pop-target
   let pops [count turtles in-radius subpop-radius] of subpops-patches
@@ -505,17 +525,32 @@ end
 ;;;;;;;;;;;;;;;THE PLOTTING PART;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to update-plot
-;update-plot-all
+update-plot-subplot
 ;update-plot-offspring
 ; update-speaking-cost-over-time
 ;update-type-of-food
 end
 
-;to update-plot-all
-;let c 0
-;;locals [c r]
-;set-current-plot "plot-all"
-;set-current-plot-pen "turtles"
+to update-plot-subplot
+  let c 0
+  set-current-plot "plot-subpop"
+  repeat 13 [
+    if(item c language-counter-subpops > 0)[
+      set-current-plot-pen word "pen-" c
+      plot item c language-counter-subpops
+    ]
+    set c c + 1
+  ]
+  set c 0
+  set-current-plot "plot-turtles"
+  repeat 13 [
+    if(item c language-counter-turtles > 0)[
+      set-current-plot-pen word "pen-" c
+      plot item c language-counter-turtles
+    ]
+    set c c + 1
+  ]
+end
 ;  plot count turtles
 ;set-current-plot-pen "reg-food"
 ;  plot ceiling ( 0.2 * (count patches with [ here-list = 1 ]))
@@ -754,7 +789,7 @@ migration-chance
 migration-chance
 0
 1
-0.4904
+1.0
 0.0001
 1
 %
@@ -836,6 +871,68 @@ migration-options
 migration-options
 "none" "distance" "population" "homesick"
 1
+
+PLOT
+1182
+42
+1382
+192
+plot-subpop
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"pen-0" 1.0 0 -7500403 true "" ""
+"pen-1" 1.0 0 -2674135 true "" ""
+"pen-2" 1.0 0 -955883 true "" ""
+"pen-3" 1.0 0 -6459832 true "" ""
+"pen-4" 1.0 0 -1184463 true "" ""
+"pen-5" 1.0 0 -10899396 true "" ""
+"pen-6" 1.0 0 -13840069 true "" ""
+"pen-7" 1.0 0 -14835848 true "" ""
+"pen-8" 1.0 0 -11221820 true "" ""
+"pen-9" 1.0 0 -13791810 true "" ""
+"pen-10" 1.0 0 -13345367 true "" ""
+"pen-11" 1.0 0 -8630108 true "" ""
+"pen-12" 1.0 0 -5825686 true "" ""
+"pen-13" 1.0 0 -2064490 true "" ""
+
+PLOT
+1204
+238
+1404
+388
+plot-turtles
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"pen-0" 1.0 0 -7500403 true "" ""
+"pen-1" 1.0 0 -2674135 true "" ""
+"pen-2" 1.0 0 -955883 true "" ""
+"pen-3" 1.0 0 -6459832 true "" ""
+"pen-4" 1.0 0 -1184463 true "" ""
+"pen-5" 1.0 0 -10899396 true "" ""
+"pen-6" 1.0 0 -13840069 true "" ""
+"pen-7" 1.0 0 -14835848 true "" ""
+"pen-8" 1.0 0 -11221820 true "" ""
+"pen-9" 1.0 0 -13791810 true "" ""
+"pen-10" 1.0 0 -13345367 true "" ""
+"pen-11" 1.0 0 -8630108 true "" ""
+"pen-12" 1.0 0 -5825686 true "" ""
+"pen-13" 1.0 0 -2064490 true "" ""
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1206,7 +1303,7 @@ Polygon -6459832 true true 38 138 66 149
 Polygon -6459832 true true 46 128 33 120 21 118 11 123 3 138 5 160 13 178 9 192 0 199 20 196 25 179 24 161 25 148 45 140
 Polygon -6459832 true true 67 122 96 126 63 144
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.1.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

@@ -178,7 +178,7 @@ to go
       set ppcolor (i + 1) * 10 + 5
     ]
 
-    set language-counter-subpops list-increment language-counter-subpops floor (ppcolor / 10)
+    set language-counter-subpops list-increment language-counter-subpops floor (pcolor / 10)
   ]
 
   ask subpops-patches[
@@ -535,19 +535,17 @@ to update-plot-subplot
   let c 0
   set-current-plot "plot-subpop"
   repeat 13 [
-    if(item c language-counter-subpops > 0)[
       set-current-plot-pen word "pen-" c
       plot item c language-counter-subpops
-    ]
+
     set c c + 1
   ]
   set c 0
   set-current-plot "plot-turtles"
   repeat 13 [
-    if(item c language-counter-turtles > 0)[
       set-current-plot-pen word "pen-" c
       plot item c language-counter-turtles
-    ]
+
     set c c + 1
   ]
 end

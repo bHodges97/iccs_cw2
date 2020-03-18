@@ -39,25 +39,16 @@
 
 
 globals [
-  extra-list                  ;; holds the values for the different types of food
-  regular                     ;; holds the value for the regular type of food, accesible to all
-  show-knowledge
-  p-knowhow                   ;; the chance that a turtle will know how to exploit a new foodtype at birth (FIXME should be a slider)
-  num-special-food-strat      ;; num-food-strat - 1, often useful.
-  expected-graph-max          ;; what we expect the Y axis to run to on the big combined plot
-  foodstrat-graph-const       ;; multiplier based on num-food-strat for the combined plot
-  tc                          ; social turtle colour
-  ktc                         ; turtles-that-know-something-you-are-looking-at colour
   subpops
   subpops-patches
   language-counter-subpops
   language-counter-turtles
+  total-counter
 ]
 
 patches-own [ here-list
   ppcolor
-]   ;;hold a value describing the type of food that is on this patch, -1 if empty
-
+]
 
 turtles-own [
   language
@@ -80,22 +71,9 @@ to setup
 end
 
 to setup-globals
-  set expected-graph-max 8000       ;; hard coded from looking at graphs
-  set regular 5                     ;;;default food's value, this could also be user defined.
-
-  set extra-list (n-values num-special-food-strat [ (regular * 2) ])  ;; special are worth twice as much
-  set extra-list (fput regular extra-list)
-
-  set show-knowledge 0
-  set p-knowhow 0.05        ;; this is a significant value in the simulation, the probability an agent learns something on its own.  Should be a slider.
-  set tc 97                 ;; color for ignorant turtles when using the "show knowledge" buttons
-  set ktc 125               ;; color for turtles who know what you want to check on, as per previous line
-;  set knowledge-transfer 0   ; see comment about this at the top of the file.  Variable not used now.
-
   set subpops []
   repeat subpop-count [set subpops lput randsubpop subpops]
   set subpops-patches ( patch-set ( map [x -> patch (item 0 x) (item 1 x)] subpops ) )
-
 end
 
 
@@ -128,7 +106,6 @@ to setup-agents
 end
 
 to setup_subpop [subpop]
-
   crt turtles-per-pop [setup_turtle (subpop)]
 end
 
@@ -145,7 +122,6 @@ to setup_turtle[subpop]
   ]
 
   set language replace-item index language start-know
-  set color tc
   set homesubpop patch (item 0 subpop) (item 1 subpop)
   set destsubpop false
   set lastsubpop patch (item 0 subpop) (item 1 subpop)
@@ -158,11 +134,13 @@ to go
   tick
   set language-counter-subpops list-zeros(14)
   set language-counter-turtles list-zeros(14)
+  set total-counter 0
 
   ask (turtles) [
     move-somewhere
     communicate
     set language-counter-turtles list-increment language-counter-turtles floor (color / 10)
+    set total-counter total-counter + color
   ]
 
   ask subpops-patches [
@@ -192,21 +170,6 @@ to go
                                            ; if (count turtles = 0) [(show (word "turtles became extinct at:" ticks)) stop] ;; never happens so excised for speed
                                            ;  if (ticks = simulation-runtime) [(show "time's up!") stop]
 end
-
-to-report list-sum [lista listb]
-  report (map + lista listb)
-end
-
-to-report list-zeros [list-size]
-  let out []
-  repeat list-size [set out lput 0 out]
-  report out
-end
-
-to-report list-increment [array offset]
-  report replace-item offset array (item offset array + 1)
-end
-
 
 to communicate
   let lang language
@@ -322,13 +285,6 @@ to-report rand-dist-target
   ]
 end
 
-;TODO
-; graph of sub=pop colours over time
-; graph of turtles colour over time
-; graph of turtles migrating count over time
-; graph of distinct \/
-;  \-;-/
-
 to-report rand-pop-target
   let pops [count turtles in-radius subpop-radius] of subpops-patches
   let pop_pick random-float sum pops
@@ -391,147 +347,25 @@ to-report gamma-flight [len]
 
 end
 
+;;;;;;;;;;;;;;;Utitlity Functions;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;; DISPLAY ;;;;;;;;;;;;;;;;;;;;;;
-;; every time the flip-button is pressed
-;; the value of show-knowledge is incremented by one untill its greater then the
-;; number of different things in the environment, then it is set back to 1
-;; the value of show-knowledge corresponds to the turtles' knowledge-slots
-
-;to flip-color
-;
-;if (num-special-food-strat != 0)
-; [ set show-knowledge (show-knowledge + 1)
-;   if show-knowledge > num-special-food-strat [set show-knowledge 1]
-;   ask turtles [ update-looks-knowhow ]
-; ]
-;end
-
-;to knowledge-gradient
-;
-;set show-knowledge (num-special-food-strat + 42)
-;ask turtles [ update-looks-gradient ]
-;end
-
-;to update-looks-knowhow
-;ifelse (show-knowledge > num-special-food-strat) [ update-looks-gradient ]
-;                                                 [ set color ifelse-value (item (show-knowledge - 1) knowhow = 1)[ktc][tc] ]
-;end
-
-;to update-looks-gradient
-;let k (sum knowhow)
-;set color ifelse-value (k = 0)[tc] [ifelse-value
-;                       (k = 1)[106] [ifelse-value
-;                       (k = 2)[116 ] [ifelse-value
-;                       (k = 3)[126] [ifelse-value
-;                       (k = 4)[136] ; k > 4
-;                              [9] ]]]]
-;
-;end
-
-;to update-patches-food
-;set color (((only-one (item (show-knowledge - 1) (butfirst (herelist)))) * 10 * show-knowledge) + 14 )
-;end
-
-to color-off
-set show-knowledge 0
-set color tc
+to-report list-sum [lista listb]
+  report (map + lista listb)
 end
 
-
-
-;;;;;;;;;;;;;;;UTILITIES, AUXILLARY REPORTERS AND PROCEDURES;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; some of these were used only in early analysis, might be fun for others.
-
-;;takes 2 lists and outputs one list that is 'adjusted'
-;;the list describing the food available at a certain patch is
-;;adjusted according to the list describing turtle knowhow
-;; assumes turtle ate everything it knew how to eat!
-;;adds 1 to item n of list l
-to-report add-food [n l]
-report (replace-item n l ((item n l) + 1 ) )
+to-report list-zeros [list-size]
+  let out []
+  repeat list-size [set out lput 0 out]
+  report out
 end
 
-;;takes a list and returns the list of non-zero item-numbers
-;n is the counter
-to-report non-zero [l n]
-if l = [] [report []]
-ifelse (first l = 1) [report fput n (non-zero butfirst l (n + 1))] [report non-zero butfirst l (n + 1)]
+to-report list-increment [array offset]
+  report replace-item offset array (item offset array + 1)
 end
-
-
-;;sum over lots of lists
-to-report sum-list [lijst-van-lijsten]
-if (lijst-van-lijsten = []) [report []]
-report sum2 (first lijst-van-lijsten) (sum-list (but-first lijst-van-lijsten))
-end
-
-;;sum over 2 lists
-to-report sum2 [list1 list2]
-if (list2 = []) [report list1]
-report (map [ [?1 ?2] -> ?1 + ?2 ] list1 list2)
-end
-
-to-report safe-mean[lll]
-  ifelse(length lll > 0)[report mean lll][report 0]
-end
-
-;to-report avg-know
-;  report safe-mean [knowhow] of turtles
-;end
-
-to-report field
-report (world-width  * world-height)
-end
-
-;reports 1 if n > 0
-to-report only-one [n]
-ifelse (n > 0) [report 1] [report 0]
-end
-
-;returns some information on the knowledge spread and the amount of food
-;to show-values
-;let soc-turtles (turtle-set )
-;let n 0
-;  let t 0
-;
-;set n 0
-;set t ((count soc-turtles) / 100)
-;print (word "time: " ticks ", agents: " round (t * 100))
-;repeat num-special-food-strat
-;    [ print ( word
-;               count soc-turtles with [ item n knowhow = 1]
-;               " agents know item " (n + 1)
-;               " (" precision ((count soc-turtles with [ item n knowhow = 1]) / t) 3 "%)")
-;      print ( word
-;               count soc-turtles with [ (sum knowhow) = (n + 1) ]
-;               " agents know " (n + 1) " items"
-;               " (" precision ((count soc-turtles with [ sum knowhow = (n + 1) ]) / t) 3 "%)")
-;      print ( word
-;               count patches with [ item (n + 1) here-list = 1 ]
-;               "patches have food type " (n + 1))
-;      set n (n + 1)
-;               ]
-;print (word (count patches with [first here-list = 1]) " patches with regular food")
-;print (word (count soc-turtles with [sum knowhow =  0]) " agents know nothing")
-;print (word "total food = " (((count patches with [first here-list = 1]) * 5)
-;                            + ((count patches with [sum butfirst here-list = 1]) * 10)))
-;print (word "patches with regular food " (count patches with [first here-list = 1])
-;            " (" precision (((count patches with [first here-list = 1]) / field) * 100) 2 "%)")
-;end
-
 
 ;;;;;;;;;;;;;;;THE PLOTTING PART;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to update-plot
-update-plot-subplot
-;update-plot-offspring
-; update-speaking-cost-over-time
-;update-type-of-food
-end
-
-to update-plot-subplot
   let c 0
   set-current-plot "plot-subpop"
   repeat 13 [
@@ -548,19 +382,9 @@ to update-plot-subplot
 
     set c c + 1
   ]
-end
-;  plot count turtles
-;set-current-plot-pen "reg-food"
-;  plot ceiling ( 0.2 * (count patches with [ here-list = 1 ]))
-;set-current-plot-pen "know"
-;  if (count turtles != 0) [ plot ceiling (100 * (avg-know))]
-;end
-
-;plots the age of the turtles having offspring
-to update-plot-offspring
-set-current-plot "offspring"
-set-current-plot-pen "age"
-set-plot-pen-mode 2
+  set-current-plot "plot-all"
+  set-current-plot-pen "turtles"
+  plot total-counter / (count turtles)
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -641,10 +465,6 @@ true
 "" ""
 PENS
 "turtles" 1.0 0 -13345367 true "" ""
-"reg-food" 1.0 0 -2674135 true "" ""
-"know" 1.0 0 -10899396 true "" ""
-"spec-food" 1.0 0 -955883 true "" ""
-"prop. talk" 1.0 0 -7500403 true "" ""
 
 BUTTON
 243
@@ -757,7 +577,7 @@ subpop-count
 subpop-count
 1
 100
-4.0
+9.0
 1
 1
 NIL
@@ -787,7 +607,7 @@ migration-chance
 migration-chance
 0
 1
-1.0
+0.2212
 0.0001
 1
 %
@@ -817,7 +637,7 @@ language-count
 language-count
 1
 10
-2.0
+1.0
 1
 1
 NIL
@@ -856,7 +676,7 @@ SWITCH
 80
 random-initial-lang?
 random-initial-lang?
-0
+1
 1
 -1000
 
@@ -868,7 +688,7 @@ CHOOSER
 migration-options
 migration-options
 "none" "distance" "population" "homesick"
-1
+0
 
 PLOT
 1182
@@ -901,11 +721,45 @@ PENS
 "pen-12" 1.0 0 -5825686 true "" ""
 "pen-13" 1.0 0 -2064490 true "" ""
 
+BUTTON
+14
+416
+109
+449
+scripts
+let c 0\nrepeat 10 [\n  setup\n  set c c + 1\n  repeat 10000[\n    go\n  ]\n  export-plot \"plot-turtles\" (word migration-options \"_\" (round ( migration-chance * 10000 ) ) \"_\" c \".png\")\n]
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+165
+415
+250
+448
+10000x
+setup\nrepeat 10000 [go]
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
 PLOT
-1204
-238
-1404
-388
+1189
+36
+1845
+460
 plot-turtles
 NIL
 NIL
